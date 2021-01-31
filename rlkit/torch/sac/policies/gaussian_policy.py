@@ -12,7 +12,7 @@ from rlkit.torch.core import torch_ify, elem_or_tuple_to_numpy
 from rlkit.torch.distributions import (
     Delta, TanhNormal, MultivariateDiagonalNormal, GaussianMixture, GaussianMixtureFull,
 )
-from rlkit.torch.networks import Mlp, CNN
+from rlkit.torch.networks import Mlp, CNN, GNN
 from rlkit.torch.networks.basic import MultiInputSequential
 from rlkit.torch.networks.stochastic.distribution_generator import (
     DistributionGenerator
@@ -128,6 +128,71 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
+class GNNGaussianPolicy(GNN, TorchStochasticPolicy):
+    def __init__(self,
+            hidden_sizes,
+            num_node_features,
+            graph_propagation,
+            readout = None,
+            num_edge_features = 0, #TODO: Not used for now
+            action_size=1,
+            std=None,
+            hidden_activation=F.tanh,
+            output_activation=None,
+            layer_norm=False,
+            layer_norm_kwargs=None,
+            gp_kwargs=None,
+            readout_kwargs=None
+    ):
+
+        super().__init__(
+                hidden_sizes=hidden_sizes,
+                num_node_features=num_node_features,
+                graph_propagation=graph_propagation,
+                readout=readout,
+                num_edge_features=num_edge_features,
+                output_size=action_size,
+                hidden_activation=hidden_activation,
+                output_activation=output_activation,
+                layer_norm=layer_norm,
+                layer_norm_kwargs=layer_norm_kwargs,
+                gp_kwargs=gp_kwargs,
+                readout_kwargs=readout_kwargs
+            )
+
+        self.log_std = None
+        self.std = std
+        if std is None:
+            last_hidden_size = num_node_features
+            if len(hidden_sizes) > 0:
+                last_hidden_size = hidden_sizes[-1]
+            self.last_gp_log_std = graph_propagation(last_hidden_size, action_dim)
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+    def forward(self, data):
+        x, edge_index = data.x, data.edge_index
+        for i, gp in enumerate(self.gps):
+            x = self.hidden_activation(gp(x, edge_index))
+        mean = self.last_fc(x, edge_index)
+        if self.std is None:
+            log_std = self.last_fc_log_std(x, edge_index)
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = torch.from_numpy(np.array([self.std, ])).float().to(
+                ptu.device)
+
+        return TanhNormal(mean, std)
+    
+    def logprob(self, action, mean, std):
+        tanh_normal = TanhNormal(mean, std)
+        log_prob = tanh_normal.log_prob(
+            action,
+        )
+        log_prob = log_prob.sum(dim=1, keepdim=True)
+        return log_prob
 
 class GaussianPolicy(Mlp, TorchStochasticPolicy):
     def __init__(

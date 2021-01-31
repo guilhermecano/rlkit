@@ -13,7 +13,7 @@ from rlkit.torch.networks import LayerNorm
 from rlkit.torch.pytorch_util import activation_from_string
 
 
-class QValueGNN(PyTorchModule):
+class GNN(PyTorchModule):
     def __init__(
             self,
             hidden_sizes,
@@ -82,63 +82,63 @@ class QValueGNN(PyTorchModule):
         return output
 
 
-class PolicyGAT(PyTorchModule, ExplorationPolicy):
-    """
-    Used for policy network
-    """
+# class PolicyGAT(PyTorchModule, ExplorationPolicy):
+#     """
+#     Used for policy network
+#     """
 
-    def __init__(self,
-                 graph_propagation,
-                 readout,
-                 *args,
-                 input_module=FetchInputPreprocessing,
-                 input_module_kwargs=None,
-                 mlp_class=FlattenTanhGaussianPolicy,
-                 composite_normalizer=None,
-                 batch_size=None,
-                 **kwargs):
+#     def __init__(self,
+#                  graph_propagation,
+#                  readout,
+#                  *args,
+#                  input_module=FetchInputPreprocessing,
+#                  input_module_kwargs=None,
+#                  mlp_class=FlattenTanhGaussianPolicy,
+#                  composite_normalizer=None,
+#                  batch_size=None,
+#                  **kwargs):
 
-        self.save_init_params(locals())
-        super().__init__()
-        self.composite_normalizer = composite_normalizer
+#         self.save_init_params(locals())
+#         super().__init__()
+#         self.composite_normalizer = composite_normalizer
 
-        # Internal modules
-        self.graph_propagation = graph_propagation
-        self.selection_attention = readout
+#         # Internal modules
+#         self.graph_propagation = graph_propagation
+#         self.selection_attention = readout
 
-        self.mlp = mlp_class(**kwargs['mlp_kwargs'])
-        self.input_module = input_module(**input_module_kwargs)
+#         self.mlp = mlp_class(**kwargs['mlp_kwargs'])
+#         self.input_module = input_module(**input_module_kwargs)
 
-    def forward(self,
-                obs,
-                mask=None,
-                demo_normalizer=False,
-                **mlp_kwargs):
-        assert mask is not None
-        vertices = self.input_module(obs, mask=mask)
-        response_embeddings = self.graph_propagation.forward(vertices, mask=mask)
+#     def forward(self,
+#                 obs,
+#                 mask=None,
+#                 demo_normalizer=False,
+#                 **mlp_kwargs):
+#         assert mask is not None
+#         vertices = self.input_module(obs, mask=mask)
+#         response_embeddings = self.graph_propagation.forward(vertices, mask=mask)
 
-        selected_objects = self.selection_attention(
-            vertices=response_embeddings,
-            mask=mask
-        )
-        selected_objects = selected_objects.squeeze(1)
-        return self.mlp(selected_objects, **mlp_kwargs)
+#         selected_objects = self.selection_attention(
+#             vertices=response_embeddings,
+#             mask=mask
+#         )
+#         selected_objects = selected_objects.squeeze(1)
+#         return self.mlp(selected_objects, **mlp_kwargs)
 
-    def get_action(self,
-                   obs_np,
-                   **kwargs):
-        assert len(obs_np.shape) == 1
-        actions, agent_info = self.get_actions(obs_np[None], **kwargs)
-        assert isinstance(actions, np.ndarray)
-        return actions[0, :], agent_info
+#     def get_action(self,
+#                    obs_np,
+#                    **kwargs):
+#         assert len(obs_np.shape) == 1
+#         actions, agent_info = self.get_actions(obs_np[None], **kwargs)
+#         assert isinstance(actions, np.ndarray)
+#         return actions[0, :], agent_info
 
-    def get_actions(self,
-                    obs_np,
-                    **kwargs):
-        mlp_outputs = self.eval_np(obs_np, **kwargs)
-        assert len(mlp_outputs) == 8
-        actions = mlp_outputs[0]
+#     def get_actions(self,
+#                     obs_np,
+#                     **kwargs):
+#         mlp_outputs = self.eval_np(obs_np, **kwargs)
+#         assert len(mlp_outputs) == 8
+#         actions = mlp_outputs[0]
 
-        agent_info = dict()
-        return actions, agent_info
+#         agent_info = dict()
+#         return actions, agent_info
