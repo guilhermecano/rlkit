@@ -128,13 +128,13 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class GNNGaussianPolicy(GNN, TorchStochasticPolicy):
+class GNNStochasticPolicy(GNN, TorchStochasticPolicy):
     def __init__(self,
             hidden_sizes,
             num_node_features,
             graph_propagation,
             readout = None,
-            num_edge_features = 0, #TODO: Not used for now
+            num_edge_features = 0,
             action_size=1,
             std=None,
             hidden_activation=F.tanh,
@@ -159,25 +159,25 @@ class GNNGaussianPolicy(GNN, TorchStochasticPolicy):
                 gp_kwargs=gp_kwargs,
                 readout_kwargs=readout_kwargs
             )
-
+        
         self.log_std = None
         self.std = std
         if std is None:
             last_hidden_size = num_node_features
             if len(hidden_sizes) > 0:
                 last_hidden_size = hidden_sizes[-1]
-            self.last_gp_log_std = graph_propagation(last_hidden_size, action_dim)
+            self.last_gp_log_std = graph_propagation(last_hidden_size, action_size)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
-        for i, gp in enumerate(self.gps):
+        for i, gp in enumerate(self.gpls):
             x = self.hidden_activation(gp(x, edge_index))
-        mean = self.last_fc(x, edge_index)
+        mean = self.last_gp(x, edge_index)
         if self.std is None:
-            log_std = self.last_fc_log_std(x, edge_index)
+            log_std = self.last_gp_log_std(x, edge_index)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:
