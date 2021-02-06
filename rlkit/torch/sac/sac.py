@@ -153,6 +153,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         Policy and Alpha Loss
         """
+        print(obs)
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
         log_pi = log_pi.unsqueeze(-1)

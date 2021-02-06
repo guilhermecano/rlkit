@@ -19,6 +19,7 @@ from rlkit.torch.networks.stochastic.distribution_generator import (
 )
 from rlkit.torch.sac.policies.base import (
     TorchStochasticPolicy,
+    GNNStochasticPolicy,
     PolicyFromDistributionGenerator,
     MakeDeterministic,
 )
@@ -128,7 +129,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class GNNStochasticPolicy(GNN, TorchStochasticPolicy):
+class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
     def __init__(self,
             hidden_sizes,
             num_node_features,
@@ -174,6 +175,7 @@ class GNNStochasticPolicy(GNN, TorchStochasticPolicy):
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         for i, gp in enumerate(self.gpls):
+            print(gp)
             x = self.hidden_activation(gp(x, edge_index))
         mean = self.last_gp(x, edge_index)
         if self.std is None:

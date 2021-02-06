@@ -3,6 +3,7 @@ import abc
 import numpy as np
 import torch
 from torch import nn as nn
+from torch_geometric.data import Batch
 
 from rlkit.torch import pytorch_util as ptu
 
@@ -48,7 +49,12 @@ def _elem_or_tuple_to_variable(elem_or_tuple):
         return tuple(
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
-    return ptu.from_numpy(elem_or_tuple).float()
+    if elem_or_tuple.dtype != np.dtype('O'):
+        return ptu.from_numpy(elem_or_tuple).float()
+    else:
+        # set a torch geometric batch
+        b = Batch()
+        return b.from_data_list(elem_or_tuple)
 
 
 def elem_or_tuple_to_numpy(elem_or_tuple):
@@ -71,7 +77,7 @@ def np_to_pytorch_batch(np_batch):
         return {
             k: _elem_or_tuple_to_variable(x)
             for k, x in _filter_batch(np_batch)
-            if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
+            # if x.dtype != np.dtype('O')  # no longer ignore object (e.g. dictionaries)
         }
     else:
         _elem_or_tuple_to_variable(np_batch)
