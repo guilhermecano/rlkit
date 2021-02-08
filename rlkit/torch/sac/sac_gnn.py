@@ -2,6 +2,7 @@ from collections import OrderedDict, namedtuple
 from typing import Tuple
 
 import numpy as np
+from numpy.core.fromnumeric import mean
 import torch
 import torch.optim as optim
 from rlkit.core.loss import LossFunction, LossStatistics
@@ -15,12 +16,15 @@ import gtimer as gt
 
 import pickle as pkl # TODO: Remover
 
+import torch
+from torch_scatter import scatter_sum
+ 
 SACLosses = namedtuple(
     'SACLosses',
     'policy_loss qf1_loss qf2_loss alpha_loss',
 )
 
-class SACTrainer(TorchTrainer, LossFunction):
+class SACGNNTrainer(TorchTrainer, LossFunction):
     def __init__(
             self,
             env,
@@ -157,8 +161,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
-        print(new_obs_actions.shape)
-        print(log_pi.shape)
         log_pi = log_pi.unsqueeze(-1)
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
@@ -168,25 +170,26 @@ class SACTrainer(TorchTrainer, LossFunction):
             alpha = 1
 
         q_new_actions = torch.min(
-            self.qf1(obs, new_obs_actions),
-            self.qf2(obs, new_obs_actions),
+            self.qf1(obs, new_obs_actions, batch=obs.batch),
+            self.qf2(obs, new_obs_actions, batch=obs.batch),
         )
-        # print(q_new_actions.shape)
-        # print(alpha)
-        # print(log_pi.shape)
+        log_pi = scatter_sum(log_pi, index=obs.batch, dim=0) # TODO: Solução temporária. Corrigir isso na política com GNN
         policy_loss = (alpha*log_pi - q_new_actions).mean()
-
         """
         QF Loss
         """
-        q1_pred = self.qf1(obs, actions)
-        q2_pred = self.qf2(obs, actions)
+
+        q1_pred = self.qf1(obs, actions, batch=obs.batch)
+        q2_pred = self.qf2(obs, actions, batch=obs.batch)
         next_dist = self.policy(next_obs)
         new_next_actions, new_log_pi = next_dist.rsample_and_logprob()
         new_log_pi = new_log_pi.unsqueeze(-1)
+
+        new_log_pi = scatter_sum(new_log_pi, index=next_obs.batch, dim=0) # TODO: Solução temporária. Corrigir isso na política com GNN
+
         target_q_values = torch.min(
-            self.target_qf1(next_obs, new_next_actions),
-            self.target_qf2(next_obs, new_next_actions),
+            self.target_qf1(next_obs, new_next_actions, batch=next_obs.batch),
+            self.target_qf2(next_obs, new_next_actions, batch=next_obs.batch),
         ) - alpha * new_log_pi
 
         q_target = self.reward_scale * rewards + (1. - terminals) * self.discount * target_q_values

@@ -1,19 +1,20 @@
 #from larocs_sim.envs.ar_drone.ar_drone import ARDroneEnv
 from larocs_sim.envs.ar_drone.ar_drone_graph import ARDroneGraphEnv
 from rlkit.samplers.rollout_functions import torch_geometric_rollout
-from rlkit.torch.networks.gnns.geometric.networks import GNN
+from rlkit.torch.networks.gnns.geometric.networks import ConcatObsActionGNN
 import rlkit.torch.pytorch_util as ptu
 from rlkit.data_management.gnn_replay_buffer import GNNEnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.samplers.data_collector import MdpPathCollector
 from rlkit.torch.sac.policies import GNNGaussianPolicy, MakeGNNDeterministic
-from rlkit.torch.sac.sac import SACTrainer
+from rlkit.torch.sac.sac_gnn import SACGNNTrainer
 from rlkit.torch.networks import GNN
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from torch_geometric.nn import GATConv
+from torch_geometric.nn import GATConv, global_mean_pool
 
 my_env = ARDroneGraphEnv
+
 
 def experiment(variant):
 
@@ -23,14 +24,15 @@ def experiment(variant):
                  scaled = False))
     eval_env = expl_env
     num_node_features = expl_env.observation_space.low.size
-    action_dim = 1
+    action_dim = 5
+    action_feature_dim = 1
 
     M = variant['layer_size']
-    qf1 = GNN(
+    qf1 = ConcatObsActionGNN(
         hidden_sizes=[M, M],
-        num_node_features=num_node_features,
+        num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout = None,
+        readout=global_mean_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
@@ -40,11 +42,11 @@ def experiment(variant):
         readout_kwargs=None
     )
 
-    qf2 = GNN(
+    qf2 = ConcatObsActionGNN(
         hidden_sizes=[M, M],
-        num_node_features=num_node_features,
+        num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout = None,
+        readout=global_mean_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
@@ -54,11 +56,11 @@ def experiment(variant):
         readout_kwargs=None
     )
 
-    target_qf1 = GNN(
+    target_qf1 = ConcatObsActionGNN(
         hidden_sizes=[M, M],
-        num_node_features=num_node_features,
+        num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout = None,
+        readout=global_mean_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
@@ -68,11 +70,11 @@ def experiment(variant):
         readout_kwargs=None
     )
 
-    target_qf2 = GNN(
+    target_qf2 = ConcatObsActionGNN(
         hidden_sizes=[M, M],
-        num_node_features=num_node_features,
+        num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout = None,
+        readout=global_mean_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
@@ -84,7 +86,7 @@ def experiment(variant):
 
     policy = GNNGaussianPolicy(
         num_node_features=num_node_features,
-        action_size=action_dim,
+        action_size=action_feature_dim,
         hidden_sizes=[M, M],
         graph_propagation=GATConv
     )
@@ -106,7 +108,7 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = SACTrainer(
+    trainer = SACGNNTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,

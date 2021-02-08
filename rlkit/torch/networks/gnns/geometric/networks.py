@@ -11,6 +11,7 @@ from rlkit.torch.core import PyTorchModule, eval_np
 from rlkit.torch.data_management.normalizer import TorchFixedNormalizer
 from rlkit.torch.networks import LayerNorm
 from rlkit.torch.pytorch_util import activation_from_string
+from copy import deepcopy
 
 
 class GNN(PyTorchModule):
@@ -66,8 +67,8 @@ class GNN(PyTorchModule):
                 self.layer_norms.append(ln)
         
         self.last_gp = self.graph_propagation(node_size, output_size, **self.gp_kwargs)
-        
-    def forward(self, data):
+
+    def forward(self, data, **kwargs):
         x, edge_index = data.x, data.edge_index
         for i, gpl in enumerate(self.gpls):
             x = gpl(x, edge_index)
@@ -78,67 +79,22 @@ class GNN(PyTorchModule):
         if self.output_activation is not None:
             output = self.output_activation(output)
         if self.readout is not None:
-            output = self.readout(output, **self.readout_kwargs)
+            output = self.readout(output, **kwargs)
         return output
 
+class ConcatObsActionGNN(GNN):
+    """
+    Concatenate actions into state Data object.
+    """
+    def __init__(self, *args, dim=1, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.dim = dim
 
-# class PolicyGAT(PyTorchModule, ExplorationPolicy):
-#     """
-#     Used for policy network
-#     """
-
-#     def __init__(self,
-#                  graph_propagation,
-#                  readout,
-#                  *args,
-#                  input_module=FetchInputPreprocessing,
-#                  input_module_kwargs=None,
-#                  mlp_class=FlattenTanhGaussianPolicy,
-#                  composite_normalizer=None,
-#                  batch_size=None,
-#                  **kwargs):
-
-#         self.save_init_params(locals())
-#         super().__init__()
-#         self.composite_normalizer = composite_normalizer
-
-#         # Internal modules
-#         self.graph_propagation = graph_propagation
-#         self.selection_attention = readout
-
-#         self.mlp = mlp_class(**kwargs['mlp_kwargs'])
-#         self.input_module = input_module(**input_module_kwargs)
-
-#     def forward(self,
-#                 obs,
-#                 mask=None,
-#                 demo_normalizer=False,
-#                 **mlp_kwargs):
-#         assert mask is not None
-#         vertices = self.input_module(obs, mask=mask)
-#         response_embeddings = self.graph_propagation.forward(vertices, mask=mask)
-
-#         selected_objects = self.selection_attention(
-#             vertices=response_embeddings,
-#             mask=mask
-#         )
-#         selected_objects = selected_objects.squeeze(1)
-#         return self.mlp(selected_objects, **mlp_kwargs)
-
-#     def get_action(self,
-#                    obs_np,
-#                    **kwargs):
-#         assert len(obs_np.shape) == 1
-#         actions, agent_info = self.get_actions(obs_np[None], **kwargs)
-#         assert isinstance(actions, np.ndarray)
-#         return actions[0, :], agent_info
-
-#     def get_actions(self,
-#                     obs_np,
-#                     **kwargs):
-#         mlp_outputs = self.eval_np(obs_np, **kwargs)
-#         assert len(mlp_outputs) == 8
-#         actions = mlp_outputs[0]
-
-#         agent_info = dict()
-#         return actions, agent_info
+    def forward(self, data, actions=None, **kwargs):
+        if actions is not None:
+            concat_node_features = torch.cat((data.x, actions), dim=self.dim)
+            concat_data = deepcopy(data) #TODO: Evaluate impact
+            concat_data.x = concat_node_features
+        else:
+            concat_data = data
+        return super().forward(concat_data, **kwargs)

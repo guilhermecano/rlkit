@@ -175,7 +175,6 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         for i, gp in enumerate(self.gpls):
-            print(gp)
             x = self.hidden_activation(gp(x, edge_index))
         mean = self.last_gp(x, edge_index)
         if self.std is None:

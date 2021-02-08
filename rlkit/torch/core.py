@@ -44,13 +44,18 @@ def np_ify(tensor_or_other):
         return tensor_or_other
 
 
-def _elem_or_tuple_to_variable(elem_or_tuple):
+def _elem_or_tuple_to_variable(elem_or_tuple): # TODO: This can comprise conventional algorithms, create one specially for GNNs later
     if isinstance(elem_or_tuple, tuple):
         return tuple(
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
     if elem_or_tuple.dtype != np.dtype('O'):
-        return ptu.from_numpy(elem_or_tuple).float()
+        tensor_elem = ptu.from_numpy(elem_or_tuple).float()
+        # Workaround for making the graph action shape compatible to others
+        if len(tensor_elem.shape) == 3:
+            dim = tensor_elem.shape # "Actions" is the only 3D tensor here
+            tensor_elem = tensor_elem.view(dim[0]*dim[1], dim[2])
+        return tensor_elem
     else:
         # set a torch geometric batch
         b = Batch()
@@ -72,7 +77,7 @@ def _filter_batch(np_batch):
             yield k, v
 
 
-def np_to_pytorch_batch(np_batch):
+def np_to_pytorch_batch(np_batch): # TODO: This can comprise conventional algorithms, create one specially for GNNs later
     if isinstance(np_batch, dict):
         return {
             k: _elem_or_tuple_to_variable(x)
