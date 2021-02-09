@@ -254,7 +254,7 @@ def from_numpy(*args, **kwargs):
     return torch.from_numpy(*args, **kwargs).float().to(device)
 
 def from_geom_dataset(data):
-    return data.x, data.edge_index
+    return data.to(device)
 
 def get_numpy(tensor):
     return tensor.to('cpu').detach().numpy()

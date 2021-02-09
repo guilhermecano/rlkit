@@ -14,8 +14,6 @@ from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.core.logging import add_prefix
 import gtimer as gt
 
-import pickle as pkl # TODO: Remover
-
 import torch
 from torch_scatter import scatter_sum
  

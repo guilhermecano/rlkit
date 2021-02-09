@@ -80,8 +80,7 @@ class GNNReplayBuffer(ReplayBuffer):
             terminals=self._terminals[indices],
             next_observations=self._next_obs[indices]
         )
-        # with open('temp_batch.pkl', 'wb') as my_batch_file: ## TODO: Remover
-        #     pkl.dump(batch, my_batch_file)
+
         for key in self._env_info_keys:
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]

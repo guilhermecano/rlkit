@@ -157,8 +157,7 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
-        print(new_obs_actions.shape)
-        print(log_pi.shape)
+
         log_pi = log_pi.unsqueeze(-1)
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()

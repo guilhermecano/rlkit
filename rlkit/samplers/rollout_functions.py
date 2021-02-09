@@ -67,7 +67,6 @@ def contextual_rollout(
     )
     return paths
 
-
 def rollout(
         env,
         agent,

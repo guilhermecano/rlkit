@@ -18,7 +18,7 @@ my_env = ARDroneGraphEnv
 
 def experiment(variant):
 
-    expl_env = NormalizedBoxEnv(my_env(headless=True,
+    expl_env = NormalizedBoxEnv(my_env(headless=False,
                  init_strategy='gaussian',
                  clipped = False,
                  scaled = False))
@@ -126,7 +126,7 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['algorithm_kwargs']
     )
-    # algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
 
 
@@ -157,5 +157,5 @@ if __name__ == "__main__":
         ),
     )
     setup_logger('teste_ardrone_gnn', variant=variant)
-    # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+    ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant)
