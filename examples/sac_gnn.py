@@ -1,4 +1,3 @@
-#from larocs_sim.envs.ar_drone.ar_drone import ARDroneEnv
 from larocs_sim.envs.ar_drone.ar_drone_graph import ARDroneGraphEnv
 from rlkit.samplers.rollout_functions import torch_geometric_rollout
 from rlkit.torch.networks.gnns.geometric.networks import ConcatObsActionGNN
@@ -11,8 +10,8 @@ from rlkit.torch.sac.policies import GNNGaussianPolicy, MakeGNNDeterministic
 from rlkit.torch.sac.sac_gnn import SACGNNTrainer
 from rlkit.torch.networks import GNN
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from torch_geometric.nn import GATConv, global_mean_pool
-
+from torch_geometric.nn import GATConv, global_add_pool
+from torch.nn import Linear
 my_env = ARDroneGraphEnv
 
 
@@ -32,10 +31,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -46,10 +46,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -60,10 +61,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -74,10 +76,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -88,7 +91,8 @@ def experiment(variant):
         num_node_features=num_node_features,
         action_size=action_feature_dim,
         hidden_sizes=[M, M],
-        graph_propagation=GATConv
+        graph_propagation=GATConv,
+        last_layer = Linear
     )
 
     eval_policy = MakeGNNDeterministic(policy)
@@ -126,8 +130,9 @@ def experiment(variant):
         replay_buffer=replay_buffer,
         **variant['algorithm_kwargs']
     )
-    # algorithm.to(ptu.device)
+    algorithm.to(ptu.device)
     algorithm.train()
+
 
 if __name__ == "__main__":
     # noinspection PyTypeChecker
@@ -137,13 +142,13 @@ if __name__ == "__main__":
         layer_size=32,
         replay_buffer_size=int(1E6),
         algorithm_kwargs=dict(
-            num_epochs=5000,
-            num_eval_steps_per_epoch=5100,
-            num_trains_per_train_loop=1000,
+            num_epochs=5,
+            num_eval_steps_per_epoch=1800,
+            num_trains_per_train_loop=100,
             num_expl_steps_per_train_loop=900,
             min_num_steps_before_training=1000,
             max_path_length=300,
-            batch_size=8000,
+            batch_size=20000,
         ),
         trainer_kwargs=dict(
             discount=0.99,
@@ -156,5 +161,5 @@ if __name__ == "__main__":
         ),
     )
     setup_logger('ardrone_gnn_teste', variant=variant)
-    # ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
+    ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant)

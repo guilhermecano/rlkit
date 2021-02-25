@@ -10,7 +10,7 @@ class NormalizedBoxEnv(ProxyEnv):
 
     Optionally normalize observations and scale reward.
     """
-
+    @profile
     def __init__(
             self,
             env,
@@ -34,17 +34,17 @@ class NormalizedBoxEnv(ProxyEnv):
         self._obs_std = obs_std
         ub = np.ones(self._wrapped_env.action_space.shape)
         self.action_space = Box(-1 * ub, ub)
-
+    @profile
     def estimate_obs_stats(self, obs_batch, override_values=False):
         if self._obs_mean is not None and not override_values:
             raise Exception("Observation mean and std already set. To "
                             "override, set override_values to True.")
         self._obs_mean = np.mean(obs_batch, axis=0)
         self._obs_std = np.std(obs_batch, axis=0)
-
+    @profile
     def _apply_normalize_obs(self, obs):
         return (obs - self._obs_mean) / (self._obs_std + 1e-8)
-
+    @profile
     def step(self, action):
         lb = self._wrapped_env.action_space.low
         ub = self._wrapped_env.action_space.high

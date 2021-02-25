@@ -8,7 +8,6 @@ from torch import nn as nn
 
 import rlkit.torch.pytorch_util as ptu
 from rlkit.policies.base import ExplorationPolicy
-from rlkit.torch.core import torch_ify, elem_or_tuple_to_numpy
 from rlkit.torch.distributions import (
     Delta, TanhNormal, MultivariateDiagonalNormal, GaussianMixture, GaussianMixtureFull,
 )
@@ -130,6 +129,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         return log_prob
 
 class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
+    @profile
     def __init__(self,
             hidden_sizes,
             num_node_features,
@@ -139,6 +139,7 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
             action_size=1,
             std=None,
             hidden_activation=F.tanh,
+            last_layer = None,
             output_activation=None,
             layer_norm=False,
             layer_norm_kwargs=None,
@@ -155,6 +156,7 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
                 output_size=action_size,
                 hidden_activation=hidden_activation,
                 output_activation=output_activation,
+                last_layer = last_layer,
                 layer_norm=layer_norm,
                 layer_norm_kwargs=layer_norm_kwargs,
                 gp_kwargs=gp_kwargs,
@@ -167,18 +169,27 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
             last_hidden_size = num_node_features
             if len(hidden_sizes) > 0:
                 last_hidden_size = hidden_sizes[-1]
-            self.last_gp_log_std = graph_propagation(last_hidden_size, action_size)
+            if last_layer is None:
+                self.last_gp_log_std = graph_propagation(last_hidden_size, action_size)
+            else:
+                self.last_gp_log_std = last_layer(last_hidden_size, action_size)
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
-
+    @profile
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         for i, gp in enumerate(self.gpls):
             x = self.hidden_activation(gp(x, edge_index))
-        mean = self.last_gp(x, edge_index)
+        if self.last_is_geom:
+            mean = self.last_gp(x, edge_index)
+        else:
+            mean = self.last_gp(x)
         if self.std is None:
-            log_std = self.last_gp_log_std(x, edge_index)
+            if self.last_is_geom:
+                log_std = self.last_gp_log_std(x, edge_index)
+            else:
+                log_std = self.last_gp_log_std(x)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:
@@ -186,7 +197,7 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
                 ptu.device)
 
         return TanhNormal(mean, std)
-    
+    @profile
     def logprob(self, action, mean, std):
         tanh_normal = TanhNormal(mean, std)
         log_prob = tanh_normal.log_prob(
@@ -194,6 +205,72 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
         )
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
+
+# class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
+#     def __init__(self,
+#             hidden_sizes,
+#             num_node_features,
+#             graph_propagation,
+#             readout = None,
+#             num_edge_features = 0,
+#             action_size=1,
+#             std=None,
+#             hidden_activation=F.tanh,
+#             output_activation=None,
+#             layer_norm=False,
+#             layer_norm_kwargs=None,
+#             gp_kwargs=None,
+#             readout_kwargs=None
+#     ):
+
+#         super().__init__(
+#                 hidden_sizes=hidden_sizes,
+#                 num_node_features=num_node_features,
+#                 graph_propagation=graph_propagation,
+#                 readout=readout,
+#                 num_edge_features=num_edge_features,
+#                 output_size=action_size,
+#                 hidden_activation=hidden_activation,
+#                 output_activation=output_activation,
+#                 layer_norm=layer_norm,
+#                 layer_norm_kwargs=layer_norm_kwargs,
+#                 gp_kwargs=gp_kwargs,
+#                 readout_kwargs=readout_kwargs
+#             )
+#         self.log_std = None
+#         self.std = std
+#         if std is None:
+#             last_hidden_size = num_node_features
+#             if len(hidden_sizes) > 0:
+#                 last_hidden_size = hidden_sizes[-1]
+#             if self.readout is not None and self._is_torch_layer:
+#                 self.readout_log_std = self.readout(last_hidden_size, 1, **self.readout_kwargs)
+#             else:
+#                 self.last_gp_log_std = graph_propagation(last_hidden_size, action_size)
+#         else:
+#             self.log_std = np.log(std)
+#             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+
+#     def forward(self, data):
+#         x, edge_index = data.x, data.edge_index
+#         for i, gp in enumerate(self.gpls):
+#             x = self.hidden_activation(gp(x, edge_index))
+#         if not self._is_torch_layer:
+#             mean = self.last_gp(x, edge_index)
+#         else:
+#             mean = self.readout_func(x)
+#         if self.std is None:
+#             if not self._is_torch_layer:
+#                 log_std = self.last_gp_log_std(x, edge_index)
+#             else:
+#                 log_std = self.readout_log_std(x)
+#             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+#             std = torch.exp(log_std)
+#         else:
+#             std = torch.from_numpy(np.array([self.std, ])).float().to(
+#                 ptu.device)
+
+#         return TanhNormal(mean, std)
 
 class GaussianPolicy(Mlp, TorchStochasticPolicy):
     def __init__(

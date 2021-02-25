@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch import nn
+from torch_geometric.data.batch import Batch
 
 
 def identity(x):
@@ -255,6 +256,10 @@ def from_numpy(*args, **kwargs):
 
 def from_geom_dataset(data):
     return data.to(device)
+@profile
+def from_datalist_to_batch(data_list):
+    b = Batch()
+    return b.from_data_list(data_list).to(device)
 
 def get_numpy(tensor):
     return tensor.to('cpu').detach().numpy()

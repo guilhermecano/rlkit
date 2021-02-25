@@ -11,14 +11,14 @@ from rlkit.torch.sac.policies import GNNGaussianPolicy, MakeGNNDeterministic
 from rlkit.torch.sac.sac_gnn import SACGNNTrainer
 from rlkit.torch.networks import GNN
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
-from torch_geometric.nn import GATConv, global_mean_pool
-
+from torch_geometric.nn import GATConv, global_add_pool
+from torch.nn import Linear
 my_env = ARDroneGraphEnv
 
 
 def experiment(variant):
 
-    expl_env = NormalizedBoxEnv(my_env(headless=False,
+    expl_env = NormalizedBoxEnv(my_env(headless=True,
                  init_strategy='gaussian',
                  clipped = False,
                  scaled = False))
@@ -32,10 +32,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -46,10 +47,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -60,10 +62,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -74,10 +77,11 @@ def experiment(variant):
         hidden_sizes=[M, M],
         num_node_features=num_node_features + action_feature_dim,
         graph_propagation=GATConv,
-        readout=global_mean_pool,
+        readout=global_add_pool,
         num_edge_features = 0,
         output_size=1,
         output_activation=None,
+        last_layer = Linear,
         layer_norm=False,
         layer_norm_kwargs=None,
         gp_kwargs=None,
@@ -88,7 +92,8 @@ def experiment(variant):
         num_node_features=num_node_features,
         action_size=action_feature_dim,
         hidden_sizes=[M, M],
-        graph_propagation=GATConv
+        graph_propagation=GATConv,
+        last_layer = Linear
     )
 
     eval_policy = MakeGNNDeterministic(policy)
@@ -135,11 +140,11 @@ if __name__ == "__main__":
     variant = dict(
         algorithm="SAC",
         version="normal",
-        layer_size=32,
+        layer_size=64,
         replay_buffer_size=int(10),
         algorithm_kwargs=dict(
-            num_epochs=5000,
-            num_eval_steps_per_epoch=100,
+            num_epochs=100,
+            num_eval_steps_per_epoch=1200,
             num_trains_per_train_loop=10,
             num_expl_steps_per_train_loop=900,
             min_num_steps_before_training=0,

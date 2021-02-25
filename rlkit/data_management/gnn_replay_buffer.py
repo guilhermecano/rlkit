@@ -13,7 +13,7 @@ from gym.spaces import Discrete
 import pickle as pkl
 
 class GNNReplayBuffer(ReplayBuffer):
-
+    @profile
     def __init__(
         self,
         max_replay_buffer_size,
@@ -46,7 +46,7 @@ class GNNReplayBuffer(ReplayBuffer):
 
         self._top = 0
         self._size = 0
-
+    @profile
     def add_sample(self, observation, action, reward, next_observation,
                    terminal, env_info, **kwargs):
         self._observations[self._top] = observation
@@ -61,18 +61,17 @@ class GNNReplayBuffer(ReplayBuffer):
     
     def terminate_episode(self):
         pass
-
+    @profile
     def _advance(self):
         self._top = (self._top + 1) % self._max_replay_buffer_size
         if self._size < self._max_replay_buffer_size:
             self._size += 1
-
+    @profile
     def random_batch(self, batch_size):
         indices = np.random.choice(self._size, size=batch_size, replace=self._replace or self._size < batch_size)
         if not self._replace and self._size < batch_size:
             warnings.warn('Replace was set to false, but is temporarily set to true because batch size is larger than current size of replay.')
         
-        # obs_data_loader = DataLoader(self._observations[indices], batch_size=batch_size)
         batch = dict(
             observations=self._observations[indices],
             actions=self._actions[indices],
@@ -85,22 +84,22 @@ class GNNReplayBuffer(ReplayBuffer):
             assert key not in batch.keys()
             batch[key] = self._env_infos[key][indices]
         return batch
-
+    @profile
     def rebuild_env_info_dict(self, idx):
         return {
             key: self._env_infos[key][idx]
             for key in self._env_info_keys
         }
-
+    @profile
     def batch_env_info_dict(self, indices):
         return {
             key: self._env_infos[key][indices]
             for key in self._env_info_keys
         }
-
+    @profile
     def num_steps_can_sample(self):
         return self._size
-
+    @profile
     def get_diagnostics(self):
         return OrderedDict([
             ('size', self._size)
@@ -108,6 +107,7 @@ class GNNReplayBuffer(ReplayBuffer):
 
 
 class GNNEnvReplayBuffer(GNNReplayBuffer):
+    @profile
     def __init__(
             self,
             max_replay_buffer_size,
@@ -132,7 +132,7 @@ class GNNEnvReplayBuffer(GNNReplayBuffer):
             action_dim=get_dim(self._action_space),
             env_info_sizes=env_info_sizes
         )
-
+    @profile
     def add_sample(self, observation, action, reward, terminal,
                    next_observation, **kwargs):
         if isinstance(self._action_space, Discrete):

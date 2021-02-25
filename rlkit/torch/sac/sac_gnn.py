@@ -23,6 +23,7 @@ SACLosses = namedtuple(
 )
 
 class SACGNNTrainer(TorchTrainer, LossFunction):
+    @profile
     def __init__(
             self,
             env,
@@ -95,7 +96,7 @@ class SACGNNTrainer(TorchTrainer, LossFunction):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
         self.eval_statistics = OrderedDict()
-
+    @profile
     def train_from_torch(self, batch):
         gt.blank_stamp()
         losses, stats = self.compute_loss(
@@ -130,11 +131,11 @@ class SACGNNTrainer(TorchTrainer, LossFunction):
             # Compute statistics using only one batch per epoch
             self._need_to_update_eval_statistics = False
         gt.stamp('sac training', unique=False)
-
+    @profile
     def try_update_target_networks(self):
         if self._n_train_steps_total % self.target_update_period == 0:
             self.update_target_networks()
-
+    @profile
     def update_target_networks(self):
         ptu.soft_update_from_to(
             self.qf1, self.target_qf1, self.soft_target_tau
@@ -142,7 +143,7 @@ class SACGNNTrainer(TorchTrainer, LossFunction):
         ptu.soft_update_from_to(
             self.qf2, self.target_qf2, self.soft_target_tau
         )
-
+    @profile
     def compute_loss(
         self,
         batch,
@@ -234,12 +235,12 @@ class SACGNNTrainer(TorchTrainer, LossFunction):
         )
 
         return loss, eval_statistics
-
+    @profile
     def get_diagnostics(self):
         stats = super().get_diagnostics()
         stats.update(self.eval_statistics)
         return stats
-
+    @profile
     def end_epoch(self, epoch):
         self._need_to_update_eval_statistics = True
 
@@ -261,7 +262,7 @@ class SACGNNTrainer(TorchTrainer, LossFunction):
             self.qf2_optimizer,
             self.policy_optimizer,
         ]
-
+    @profile
     def get_snapshot(self):
         return dict(
             policy=self.policy,
