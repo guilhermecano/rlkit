@@ -256,7 +256,7 @@ def from_numpy(*args, **kwargs):
 
 def from_geom_dataset(data):
     return data.to(device)
-@profile
+
 def from_datalist_to_batch(data_list):
     b = Batch()
     return b.from_data_list(data_list).to(device)

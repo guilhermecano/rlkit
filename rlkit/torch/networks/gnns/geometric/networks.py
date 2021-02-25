@@ -98,7 +98,7 @@ from copy import copy
 
 
 class GNN(PyTorchModule):
-    @profile
+    
     def __init__(
             self,
             hidden_sizes,
@@ -159,7 +159,7 @@ class GNN(PyTorchModule):
             self.last_gp = self.graph_propagation(node_size, output_size, **self.gp_kwargs)
         else:
             self.last_gp = last_layer(node_size, output_size, **self.gp_kwargs)
-    @profile
+    
     def forward(self, data, **kwargs):
         x, edge_index = data.x, data.edge_index
         for i, gpl in enumerate(self.gpls):
@@ -182,11 +182,11 @@ class ConcatObsActionGNN(GNN):
     """
     Concatenate actions into state Data object.
     """
-    @profile
+    
     def __init__(self, *args, dim=1, **kwargs):
         super().__init__(*args, **kwargs)
         self.dim = dim
-    @profile
+    
     def forward(self, data, actions=None, **kwargs):
         if actions is not None:
             concat_node_features = torch.cat((data.x, actions), dim=self.dim)

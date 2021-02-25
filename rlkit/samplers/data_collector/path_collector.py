@@ -9,7 +9,7 @@ from rlkit.samplers.rollout_functions import rollout
 
 
 class MdpPathCollector(PathCollector):
-    @profile
+    
     def __init__(
             self,
             env,
@@ -34,7 +34,7 @@ class MdpPathCollector(PathCollector):
         self._num_paths_total = 0
 
         self._save_env_in_snapshot = save_env_in_snapshot
-    @profile
+    
     def collect_new_paths(
             self,
             max_path_length,
@@ -68,13 +68,13 @@ class MdpPathCollector(PathCollector):
         self._num_steps_total += num_steps_collected
         self._epoch_paths.extend(paths)
         return paths
-    @profile
+    
     def get_epoch_paths(self):
         return self._epoch_paths
-    @profile
+    
     def end_epoch(self, epoch):
         self._epoch_paths = deque(maxlen=self._max_num_epoch_paths_saved)
-    @profile
+    
     def get_diagnostics(self):
         path_lens = [len(path['actions']) for path in self._epoch_paths]
         stats = OrderedDict([
@@ -87,7 +87,7 @@ class MdpPathCollector(PathCollector):
             always_show_all_stats=True,
         ))
         return stats
-    @profile
+    
     def get_snapshot(self):
         snapshot_dict = dict(
             policy=self._policy,

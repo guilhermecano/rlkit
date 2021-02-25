@@ -14,7 +14,7 @@ class PyTorchModule(nn.Module, metaclass=abc.ABCMeta):
     """
     pass
 
-@profile
+
 def eval_np(module, *args, **kwargs):
     """
     Eval this module with a numpy interface
@@ -29,21 +29,21 @@ def eval_np(module, *args, **kwargs):
     outputs = module(*torch_args, **torch_kwargs)
     return elem_or_tuple_to_numpy(outputs)
 
-@profile
+
 def torch_ify(np_array_or_other):
     if isinstance(np_array_or_other, np.ndarray):
         return ptu.from_numpy(np_array_or_other)
     else:
         return ptu.from_geom_dataset(np_array_or_other)
 
-@profile
+
 def np_ify(tensor_or_other):
     if isinstance(tensor_or_other, torch.autograd.Variable):
         return ptu.get_numpy(tensor_or_other)
     else:
         return tensor_or_other
 
-@profile
+
 def _elem_or_tuple_to_variable(elem_or_tuple): # TODO: This can compromise conventional algorithms, create one specially for GNNs later
     if isinstance(elem_or_tuple, tuple):
         return tuple(
@@ -65,14 +65,14 @@ def _elem_or_tuple_to_variable(elem_or_tuple): # TODO: This can compromise conve
         # geom_batch = ptu.from_datalist_to_batch(elem_or_tuple)
         return geom_batch
 
-@profile
+
 def elem_or_tuple_to_numpy(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
         return tuple(np_ify(x) for x in elem_or_tuple)
     else:
         return np_ify(elem_or_tuple)
 
-@profile
+
 def _filter_batch(np_batch):
     for k, v in np_batch.items():
         if v.dtype == np.bool:
@@ -80,7 +80,7 @@ def _filter_batch(np_batch):
         else:
             yield k, v
 
-@profile
+
 def np_to_pytorch_batch(np_batch): # TODO: This can compromise conventional algorithms, create one specially for GNNs later
     if isinstance(np_batch, dict):
         return {

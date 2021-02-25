@@ -146,7 +146,7 @@ def rollout(
         full_observations=raw_obs,
         full_next_observations=raw_obs,
     )
-@profile
+
 def torch_geometric_rollout(
         env,
         agent,

@@ -129,7 +129,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         return log_prob
 
 class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
-    @profile
+    
     def __init__(self,
             hidden_sizes,
             num_node_features,
@@ -176,7 +176,7 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
         else:
             self.log_std = np.log(std)
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
-    @profile
+    
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
         for i, gp in enumerate(self.gpls):
@@ -197,7 +197,7 @@ class GNNGaussianPolicy(GNN, GNNStochasticPolicy):
                 ptu.device)
 
         return TanhNormal(mean, std)
-    @profile
+    
     def logprob(self, action, mean, std):
         tanh_normal = TanhNormal(mean, std)
         log_prob = tanh_normal.log_prob(
