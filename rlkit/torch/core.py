@@ -3,7 +3,6 @@ import abc
 import numpy as np
 import torch
 from torch import nn as nn
-from torch_geometric.data import Batch, Data
 
 from rlkit.torch import pytorch_util as ptu
 
@@ -34,7 +33,7 @@ def torch_ify(np_array_or_other):
     if isinstance(np_array_or_other, np.ndarray):
         return ptu.from_numpy(np_array_or_other)
     else:
-        return ptu.from_geom_dataset(np_array_or_other)
+        return np_array_or_other
 
 
 def np_ify(tensor_or_other):
@@ -44,26 +43,12 @@ def np_ify(tensor_or_other):
         return tensor_or_other
 
 
-def _elem_or_tuple_to_variable(elem_or_tuple): # TODO: This can compromise conventional algorithms, create one specially for GNNs later
+def _elem_or_tuple_to_variable(elem_or_tuple):
     if isinstance(elem_or_tuple, tuple):
         return tuple(
             _elem_or_tuple_to_variable(e) for e in elem_or_tuple
         )
-    if elem_or_tuple.dtype != np.dtype('O'):
-        tensor_elem = ptu.from_numpy(elem_or_tuple).float()
-        # Workaround for making the graph action shape compatible to others
-        if len(tensor_elem.shape) == 3:
-            dim = tensor_elem.shape # "Actions" is the only 3D tensor here
-            tensor_elem = tensor_elem.view(dim[0]*dim[1], dim[2])
-        return tensor_elem
-    else:
-        # set a torch geometric batch
-        batch_lst = []
-        for v in elem_or_tuple: #TODO: Remover essa aberração quando eu descobrir de onde vem Data em cpu, sendo que era pra estar todo mundo em GPU.
-            batch_lst.append(ptu.from_geom_dataset(v))
-        b = Batch()
-        geom_batch = b.from_data_list(batch_lst)
-        return geom_batch
+    return ptu.from_numpy(elem_or_tuple).float()
 
 
 def elem_or_tuple_to_numpy(elem_or_tuple):
@@ -81,12 +66,12 @@ def _filter_batch(np_batch):
             yield k, v
 
 
-def np_to_pytorch_batch(np_batch): # TODO: This can comprise conventional algorithms, create one specially for GNNs later
+def np_to_pytorch_batch(np_batch):
     if isinstance(np_batch, dict):
         return {
             k: _elem_or_tuple_to_variable(x)
             for k, x in _filter_batch(np_batch)
-            # if x.dtype != np.dtype('O')  # no longer ignore object (e.g. dictionaries)
+            if x.dtype != np.dtype('O')  # ignore object (e.g. dictionaries)
         }
     else:
         _elem_or_tuple_to_variable(np_batch)

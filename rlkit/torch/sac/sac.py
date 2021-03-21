@@ -13,8 +13,6 @@ from rlkit.torch.torch_rl_algorithm import TorchTrainer
 from rlkit.core.logging import add_prefix
 import gtimer as gt
 
-import pickle as pkl # TODO: Remover
-
 SACLosses = namedtuple(
     'SACLosses',
     'policy_loss qf1_loss qf2_loss alpha_loss',
@@ -157,7 +155,6 @@ class SACTrainer(TorchTrainer, LossFunction):
         """
         dist = self.policy(obs)
         new_obs_actions, log_pi = dist.rsample_and_logprob()
-
         log_pi = log_pi.unsqueeze(-1)
         if self.use_automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
@@ -170,9 +167,6 @@ class SACTrainer(TorchTrainer, LossFunction):
             self.qf1(obs, new_obs_actions),
             self.qf2(obs, new_obs_actions),
         )
-        # print(q_new_actions.shape)
-        # print(alpha)
-        # print(log_pi.shape)
         policy_loss = (alpha*log_pi - q_new_actions).mean()
 
         """
