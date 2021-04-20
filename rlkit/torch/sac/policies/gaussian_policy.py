@@ -128,6 +128,75 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
+class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
+    
+    def __init__(self, *args, action_size=1, std=None, readout=None, readout_activation=None,
+                 readout_sizes=[], readout_kwargs={}, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.log_std = None
+        self.std = std
+        self.readout = readout
+        if std is None:
+            last_embedding_size = self.num_features_per_layer[-1]
+            if readout is None:
+                GATLayer = get_layer_type(self.layer_type)
+                gat_kwargs = {
+                    'num_in_features': last_embedding_size,
+                    'num_out_features': action_size,
+                    "num_of_heads": 1,
+                    "concat": False,
+                    "activation": None,
+                    "dropout_prob": self.dropout,
+                    "add_skip_connection": self.add_skip_connection,
+                    "bias": self.bias,
+                    "log_attention_weights": self.log_attention_weights}
+                self.last_mean_layer = GATLayer(**gat_kwargs)
+                self.last_log_std = GATLayer(**gat_kwargs)
+            else:
+                readout_lst = []
+                n_layers = len(readout_sizes)
+                for i, n in enumerate(readout_sizes):
+                    readout_lst.append(readout(last_embedding_size, n, **readout_kwargs))
+                    last_size = n
+                    if i < n_layers-1:
+                        readout_lst.append(readout_activation())
+                self.last_mean_layer = nn.Sequential(
+                    *readout_lst
+                )
+                self.last_log_std = nn.Sequential(
+                    *readout_lst
+                )
+        else:
+            self.log_std = np.log(std)
+            assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
+    
+    def forward(self, data):
+        edge_index = data[1]
+        x, _ = self.gat_net(data)
+        try:
+            mean = self.last_mean_layer(x)
+        except: # gnn
+            mean, _ = self.last_mean_layer((x, edge_index))
+        if self.std is None:
+            try:
+                log_std = self.last_log_std(x)
+            except: # gnn
+                log_std, _ = self.last_log_std((x, edge_index))
+            log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
+            std = torch.exp(log_std)
+        else:
+            std = torch.from_numpy(np.array([self.std, ])).float().to(
+                ptu.device)
+        return TanhNormal(mean, std)
+    
+    def logprob(self, action, mean, std):
+        tanh_normal = TanhNormal(mean, std)
+        log_prob = tanh_normal.log_prob(
+            action,
+        )
+        log_prob = log_prob.sum(dim=1, keepdim=True)
+        return log_prob
 
 class GaussianPolicy(Mlp, TorchStochasticPolicy):
     def __init__(

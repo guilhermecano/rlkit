@@ -38,7 +38,6 @@ class TorchStochasticPolicy(
         dist = self(*torch_args, **torch_kwargs)
         return dist
 
-
 class PolicyFromDistributionGenerator(
     MultiInputSequential,
     TorchStochasticPolicy,
