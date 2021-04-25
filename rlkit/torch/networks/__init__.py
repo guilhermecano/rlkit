@@ -20,6 +20,7 @@ from rlkit.torch.networks.mlp import (
 )
 from rlkit.torch.networks.pretrained_cnn import PretrainedCNN
 from rlkit.torch.networks.two_headed_mlp import TwoHeadMlp
+from rlkit.torch.relational.networks import GAT
 
 __all__ = [
     'Clamp',
@@ -34,6 +35,7 @@ __all__ = [
     'FeatPointMlp',
     'Flatten',
     'FlattenEach',
+    'GAT',
     'LayerNorm',
     'LinearTransform',
     'ImageStatePolicy',

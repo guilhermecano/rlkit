@@ -5,10 +5,9 @@ import torch
 from rlkit.torch.networks import Mlp
 from rlkit.torch.core import PyTorchModule
 import rlkit.torch.pytorch_util as ptu
-from rlkit.torch.sac.policies import FlattenTanhGaussianPolicy, CompositeNormalizedTanhGaussianPolicy
-from rlkit.torch.relational.relational_util import fetch_preprocessing
 import numpy as np
-
+from rlkit.torch.networks.gat.utils import LayerType
+from rlkit.torch.networks.gat.gat import get_layer_type, GATLayer, GATLayerImp1, GATLayerImp2, GATLayerImp3
 
 class GAT(torch.nn.Module):
     """

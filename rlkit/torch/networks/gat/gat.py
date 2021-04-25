@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-from rlkit.torch.networks.gat.utils.constants import LayerType
+from rlkit.torch.networks.gat.utils import LayerType
 
 
 class GATLayer(torch.nn.Module):

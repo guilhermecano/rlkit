@@ -1,20 +1,20 @@
-from larocs_sim.envs.ar_drone.ar_drone_graph import ARDroneGNNEnv
+from larocs_sim.envs.ar_drone.ar_drone_graph import ARDroneGraphEnv
 from rlkit.samplers.rollout_functions import rollout
 import rlkit.torch.pytorch_util as ptu
 from rlkit.data_management.env_replay_buffer import EnvReplayBuffer
 from rlkit.envs.wrappers import NormalizedBoxEnv
 from rlkit.launchers.launcher_util import setup_logger
 from rlkit.samplers.data_collector import MdpPathCollector
-from rlkit.torch.sac.policies import MakeDeterministic
+from rlkit.torch.sac.policies.base import MakeGATDeterministic
 from rlkit.torch.sac.sac import SACTrainer
 from rlkit.torch.torch_rl_algorithm import TorchBatchRLAlgorithm
 
 from rlkit.torch.relational.networks import ConcatObsActionGAT
 from rlkit.torch.sac.policies.gaussian_policy import TanhGATGaussianPolicy
+from rlkit.torch.networks.gat.utils import LayerType
 
-from torch.nn import Linear
+from torch.nn import Linear, ELU, Tanh
 my_env = ARDroneGraphEnv
-
 
 def experiment(variant):
 
@@ -28,38 +28,38 @@ def experiment(variant):
     action_feature_dim = 1
 
     q_kwargs = {"num_of_layers":2,
-        "num_heads_per_layer":[2,1],
-        "num_features_per_layer":[18 + action_feature_dim, 64, 64],
+        "num_heads_per_layer":[3,1],
+        "num_features_per_layer":[num_node_features + action_feature_dim, 64, 64],
         "add_skip_connection":True,
         "bias":True,
         "dropout":0.6,
         "layer_type":LayerType.IMP3,
         "log_attention_weights":False,
-        "readout":nn.Linear,
+        "readout":Linear,
         "readout_sizes":[32, 1]}
 
-    qf1 = ConcatObsActionGNN(**q_kwargs)
-    qf2 = ConcatObsActionGNN(**q_kwargs)
-    target_qf1 = ConcatObsActionGNN(**q_kwargs)
-    target_qf2 = ConcatObsActionGNN(**q_kwargs)
+    qf1 = ConcatObsActionGAT(**q_kwargs)
+    qf2 = ConcatObsActionGAT(**q_kwargs)
+    target_qf1 = ConcatObsActionGAT(**q_kwargs)
+    target_qf2 = ConcatObsActionGAT(**q_kwargs)
 
 
-    policy = TanhGNNGaussianPolicynum_of_layers=2,
+    policy = TanhGATGaussianPolicy(num_of_layers=2,
              action_size=1, 
              std=None,
-             activation = nn.Tanh,
-             readout=nn.Linear,
-             readout_activation=nn.Tanh,
+             activation = Tanh,
+             readout=Linear,
+             readout_activation=Tanh,
              readout_sizes=[64, 1],
              num_heads_per_layer=[3, 1],
-             num_features_per_layer=[18, 64, 64],
+             num_features_per_layer=[num_node_features, 64, 64],
              add_skip_connection = True,
              bias=True,
              dropout=0.6,
              layer_type=LayerType.IMP3,
              log_attention_weights=False)
 
-    eval_policy = MakeDeterministic(policy)
+    eval_policy = MakeGATDeterministic(policy)
     eval_path_collector = MdpPathCollector(
         eval_env,
         eval_policy,
@@ -76,7 +76,7 @@ def experiment(variant):
         variant['replay_buffer_size'],
         expl_env,
     )
-    trainer = SACGNNTrainer(
+    trainer = SACTrainer(
         env=eval_env,
         policy=policy,
         qf1=qf1,
@@ -123,6 +123,6 @@ if __name__ == "__main__":
             use_automatic_entropy_tuning=True,
         ),
     )
-    setup_logger('ardrone_gnn_teste', variant=variant)
+    setup_logger('ardrone_gat_teste', variant=variant)
     ptu.set_gpu_mode(True)  # optionally set the GPU (default=False)
     experiment(variant)

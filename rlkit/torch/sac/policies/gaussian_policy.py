@@ -12,13 +12,14 @@ from rlkit.torch.core import torch_ify, elem_or_tuple_to_numpy
 from rlkit.torch.distributions import (
     Delta, TanhNormal, MultivariateDiagonalNormal, GaussianMixture, GaussianMixtureFull,
 )
-from rlkit.torch.networks import Mlp, CNN
+from rlkit.torch.networks import Mlp, CNN, GAT
 from rlkit.torch.networks.basic import MultiInputSequential
 from rlkit.torch.networks.stochastic.distribution_generator import (
     DistributionGenerator
 )
 from rlkit.torch.sac.policies.base import (
     TorchStochasticPolicy,
+    TorchGATStochasticPolicy,
     PolicyFromDistributionGenerator,
     MakeDeterministic,
 )
@@ -128,7 +129,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
+class TanhGATGaussianPolicy(GAT, TorchGATStochasticPolicy):
     
     def __init__(self, *args, action_size=1, std=None, readout=None, readout_activation=None,
                  readout_sizes=[], readout_kwargs={}, **kwargs):
