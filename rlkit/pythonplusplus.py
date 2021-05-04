@@ -158,14 +158,17 @@ def list_of_dicts__to__dict_of_lists(lst):
     ```
     """
     if len(lst) == 0:
+        return {} 
+    try: #TODO: Check what to do with this.
+        keys = lst[0].keys()
+        output_dict = collections.defaultdict(list)
+        for d in lst:
+            assert set(d.keys()) == set(keys), (d.keys(), keys)
+            for k in keys:
+                output_dict[k].append(d[k])
+        return output_dict
+    except:
         return {}
-    keys = lst[0].keys()
-    output_dict = collections.defaultdict(list)
-    for d in lst:
-        assert set(d.keys()) == set(keys), (d.keys(), keys)
-        for k in keys:
-            output_dict[k].append(d[k])
-    return output_dict
 
 
 def safe_json(data):

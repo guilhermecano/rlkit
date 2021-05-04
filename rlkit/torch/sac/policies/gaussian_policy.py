@@ -129,7 +129,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
         log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
-class TanhGATGaussianPolicy(GAT, TorchGATStochasticPolicy):
+class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
     
     def __init__(self, *args, action_size=1, std=None, readout=None, readout_activation=None,
                  readout_sizes=[], readout_kwargs={}, **kwargs):
@@ -146,6 +146,7 @@ class TanhGATGaussianPolicy(GAT, TorchGATStochasticPolicy):
                     'num_in_features': last_embedding_size,
                     'num_out_features': action_size,
                     "num_of_heads": 1,
+                    "edge_index": edge_index,
                     "concat": False,
                     "activation": None,
                     "dropout_prob": self.dropout,
@@ -173,17 +174,10 @@ class TanhGATGaussianPolicy(GAT, TorchGATStochasticPolicy):
             assert LOG_SIG_MIN <= self.log_std <= LOG_SIG_MAX
     
     def forward(self, data):
-        edge_index = data[1]
-        x, _ = self.gat_net(data)
-        try:
-            mean = self.last_mean_layer(x)
-        except: # gnn
-            mean, _ = self.last_mean_layer((x, edge_index))
+        x = self.gat_net(data)
+        mean = self.last_mean_layer(x)
         if self.std is None:
-            try:
-                log_std = self.last_log_std(x)
-            except: # gnn
-                log_std, _ = self.last_log_std((x, edge_index))
+            log_std = self.last_log_std(x)
             log_std = torch.clamp(log_std, LOG_SIG_MIN, LOG_SIG_MAX)
             std = torch.exp(log_std)
         else:

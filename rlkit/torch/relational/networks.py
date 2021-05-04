@@ -18,7 +18,7 @@ class GAT(torch.nn.Module):
         understand implementation 2 first, check out the differences it has with imp1, and finally tackle imp #3.
     """
 
-    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, add_skip_connection=True, bias=True,
+    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, edge_index, add_skip_connection=True, bias=True,
                  dropout=0.6, layer_type=LayerType.IMP3, activation=nn.ELU, log_attention_weights=False):
         super().__init__()
         self.num_of_layers = num_of_layers
@@ -41,6 +41,7 @@ class GAT(torch.nn.Module):
                 num_in_features=num_features_per_layer[i] * num_heads_per_layer[i],  # consequence of concatenation
                 num_out_features=num_features_per_layer[i+1],
                 num_of_heads=num_heads_per_layer[i+1],
+                edge_index= edge_index,
                 concat=True if i < num_of_layers - 1 else False,  # last GAT layer does mean avg, the others do concat
                 activation= activation() if i < num_of_layers - 1 else None,  # last layer just outputs raw scores
                 dropout_prob=dropout,
@@ -59,7 +60,6 @@ class GAT(torch.nn.Module):
     def forward(self, data):
         return self.gat_net(data)
 
-
 class ReadoutGAT(torch.nn.Module):
     """
     I've added 3 GAT implementations - some are conceptually easier to understand some are more efficient.
@@ -69,8 +69,9 @@ class ReadoutGAT(torch.nn.Module):
         understand implementation 2 first, check out the differences it has with imp1, and finally tackle imp #3.
     """
 
-    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, add_skip_connection=True, bias=True,
-                 dropout=0.6, layer_type=LayerType.IMP3, log_attention_weights=False, readout=None, readout_sizes=[], readout_kwargs={}):
+    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, edge_index, add_skip_connection=True, bias=True,
+                 dropout=0.6, layer_type=LayerType.IMP3, log_attention_weights=False, readout=None, readout_activation=None,
+                 readout_sizes=[], readout_kwargs={}):
         super().__init__()
         self.num_of_layers = num_of_layers
         self.num_heads_per_layer = num_heads_per_layer
@@ -92,6 +93,7 @@ class ReadoutGAT(torch.nn.Module):
                 num_in_features=num_features_per_layer[i] * num_heads_per_layer[i],  # consequence of concatenation
                 num_out_features=num_features_per_layer[i+1],
                 num_of_heads=num_heads_per_layer[i+1],
+                edge_index= edge_index,
                 concat=True if i < num_of_layers - 1 else False,  # last GAT layer does mean avg, the others do concat
                 activation=nn.ELU() if i < num_of_layers - 1 else None,  # last layer just outputs raw scores
                 dropout_prob=dropout,
@@ -107,15 +109,17 @@ class ReadoutGAT(torch.nn.Module):
         last_size = num_features_per_layer[-1]
         if readout is not None:
             readout_lst = []
-            for n in readout_sizes:
+            for i, n in enumerate(readout_sizes):
                 readout_lst.append(readout(last_size, n, **readout_kwargs))
                 last_size = n
+                if i < len(readout_lst) - 1:
+                    readout_lst.append(readout_activation())
             self.readout = nn.Sequential(
                 *readout_lst
             )
             
     def forward(self, data):
-        x, edge_index = self.gat_net(data)
+        x = self.gat_net(data)
         x = self.readout(x)
         return x
 
@@ -124,137 +128,13 @@ class ConcatObsActionGAT(ReadoutGAT):
     Concatenate actions into state Data object.
     """
     
-    def __init__(self, *args, dim=1, **kwargs):
+    def __init__(self, *args, dim=2, **kwargs):
         super().__init__(*args, **kwargs)
         self.dim = dim
     
     def forward(self, data, actions=None, **kwargs):
         if actions is not None:
-            concat_node_features = torch.cat((data[0], actions), dim=self.dim)
-            concat_node_features
-            concat_data = (concat_node_features, data[1])
+            concat_node_features = torch.cat((data, actions), dim=self.dim)
         else:
-            concat_data = data
-        return super().forward(concat_data, **kwargs)
-
-
-# class PolicyReNN(PyTorchModule, ExplorationPolicy):
-#     """
-#     Used for policy network
-#     """
-
-#     def __init__(self,
-#                  graph_propagation,
-#                  readout,
-#                  *args,
-#                  input_module=FetchInputPreprocessing,
-#                  input_module_kwargs=None,
-#                  mlp_class=FlattenTanhGaussianPolicy,
-#                  composite_normalizer=None,
-#                  batch_size=None,
-#                  **kwargs):
-#         self.save_init_params(locals())
-#         super().__init__()
-#         self.composite_normalizer = composite_normalizer
-
-#         # Internal modules
-#         self.graph_propagation = graph_propagation
-#         self.selection_attention = readout
-
-#         self.mlp = mlp_class(**kwargs['mlp_kwargs'])
-#         self.input_module = input_module(**input_module_kwargs)
-
-#     def forward(self,
-#                 obs,
-#                 mask=None,
-#                 demo_normalizer=False,
-#                 **mlp_kwargs):
-#         assert mask is not None
-#         vertices = self.input_module(obs, mask=mask)
-#         response_embeddings = self.graph_propagation.forward(vertices, mask=mask)
-
-#         selected_objects = self.selection_attention(
-#             vertices=response_embeddings,
-#             mask=mask
-#         )
-#         selected_objects = selected_objects.squeeze(1)
-#         return self.mlp(selected_objects, **mlp_kwargs)
-
-#     def get_action(self,
-#                    obs_np,
-#                    **kwargs):
-#         assert len(obs_np.shape) == 1
-#         actions, agent_info = self.get_actions(obs_np[None], **kwargs)
-#         assert isinstance(actions, np.ndarray)
-#         return actions[0, :], agent_info
-
-#     def get_actions(self,
-#                     obs_np,
-#                     **kwargs):
-#         mlp_outputs = self.eval_np(obs_np, **kwargs)
-#         assert len(mlp_outputs) == 8
-#         actions = mlp_outputs[0]
-
-#         agent_info = dict()
-#         return actions, agent_info
-
-
-# class ValueReNN(PyTorchModule):
-#     def __init__(self,
-#                  graph_propagation,
-#                  readout,
-#                  input_module=FetchInputPreprocessing,
-#                  input_module_kwargs=None,
-#                  state_preprocessing_fnx=fetch_preprocessing,
-#                  *args,
-#                  value_mlp_kwargs=None,
-#                  composite_normalizer=None,
-#                  **kwargs):
-#         self.save_init_params(locals())
-#         super().__init__()
-#         self.input_module = input_module(**input_module_kwargs)
-#         self.graph_propagation = graph_propagation
-#         self.readout = readout
-#         self.composite_normalizer = composite_normalizer
-
-#     def forward(self,
-#                 obs,
-#                 mask=None,
-#                 return_stacked_softmax=False):
-#         vertices = self.input_module(obs, mask=mask)
-#         new_vertices = self.graph_propagation.forward(vertices, mask=mask)
-#         pooled_output = self.readout(new_vertices, mask=mask)
-#         return pooled_output
-
-
-# class QValueReNN(PyTorchModule):
-#     """
-#     Used for q-value network
-#     """
-
-#     def __init__(self,
-#                  graph_propagation,
-#                  readout,
-#                  input_module=FetchInputPreprocessing,
-#                  input_module_kwargs=None,
-#                  state_preprocessing_fnx=fetch_preprocessing,
-#                  *args,
-#                  composite_normalizer=None,
-#                  **kwargs):
-#         self.save_init_params(locals())
-#         super().__init__()
-#         self.graph_propagation = graph_propagation
-#         self.state_preprocessing_fnx = state_preprocessing_fnx
-#         self.readout = readout
-#         self.composite_normalizer = composite_normalizer
-#         self.input_module = input_module(**input_module_kwargs)
-
-#     def forward(self, obs, actions, mask=None, return_stacked_softmax=False):
-#         assert mask is not None
-#         vertices = self.input_module(obs, actions=actions, mask=mask)
-#         relational_block_embeddings = self.graph_propagation.forward(vertices, mask=mask)
-#         pooled_output = self.readout(relational_block_embeddings, mask=mask)
-#         assert pooled_output.size(-1) == 1
-#         return pooled_output
-
-
+            concat_node_features = data
+        return super().forward(concat_node_features, **kwargs)
