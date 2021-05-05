@@ -6,7 +6,7 @@ import torch
 import torch.optim as optim
 from rlkit.core.loss import LossFunction, LossStatistics
 from torch import nn as nn
-
+from hyperdash import Experiment
 import rlkit.torch.pytorch_util as ptu
 from rlkit.core.eval_util import create_stats_ordered_dict
 from rlkit.torch.torch_rl_algorithm import TorchTrainer
@@ -27,6 +27,8 @@ class SACGAT(TorchTrainer, LossFunction):
             qf2,
             target_qf1,
             target_qf2,
+
+            exp_name="GAT Experiment",
 
             discount=0.99,
             reward_scale=1.0,
@@ -91,6 +93,7 @@ class SACGAT(TorchTrainer, LossFunction):
         self._n_train_steps_total = 0
         self._need_to_update_eval_statistics = True
         self.eval_statistics = OrderedDict()
+        Experiment(exp_name)
 
     def train_from_torch(self, batch):
         gt.blank_stamp()
