@@ -24,6 +24,8 @@ from rlkit.torch.sac.policies.base import (
     MakeDeterministic,
 )
 
+from copy import deepcopy
+
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 
@@ -131,7 +133,7 @@ class TanhGaussianPolicy(Mlp, TorchStochasticPolicy):
 
 class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
     
-    def __init__(self, *args, action_size=1, std=None, readout=None, readout_activation=None,
+    def __init__(self, *args, action_size=1, activation=nn.ELU, std=None, readout=None, readout_activation=None,
                  readout_sizes=[], readout_kwargs={}, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -154,20 +156,23 @@ class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
                     "bias": self.bias,
                     "log_attention_weights": self.log_attention_weights}
                 self.last_mean_layer = GATLayer(**gat_kwargs)
-                self.last_log_std = GATLayer(**gat_kwargs)
+                self.last_log_std = deepcopy(GATLayer(**gat_kwargs))
             else:
                 readout_lst = []
                 n_layers = len(readout_sizes)
+                last_size = last_embedding_size
                 for i, n in enumerate(readout_sizes):
-                    readout_lst.append(readout(last_embedding_size, n, **readout_kwargs))
+                    readout_lst.append(readout(last_size, n, **readout_kwargs))
                     last_size = n
                     if i < n_layers-1:
                         readout_lst.append(readout_activation())
+                readout_lst_std = deepcopy(readout_lst)
+                    
                 self.last_mean_layer = nn.Sequential(
                     *readout_lst
                 )
                 self.last_log_std = nn.Sequential(
-                    *readout_lst
+                    *readout_lst_std
                 )
         else:
             self.log_std = np.log(std)
@@ -190,7 +195,7 @@ class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
         log_prob = tanh_normal.log_prob(
             action,
         )
-        log_prob = log_prob.sum(dim=1, keepdim=True)
+        log_prob = log_prob.sum(dim=2, keepdim=True)
         return log_prob
 
 class GaussianPolicy(Mlp, TorchStochasticPolicy):

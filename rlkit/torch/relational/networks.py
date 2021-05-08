@@ -19,7 +19,7 @@ class GAT(torch.nn.Module):
     """
 
     def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, edge_index, add_skip_connection=True, bias=True,
-                 dropout=0.6, layer_type=LayerType.IMP3, activation=nn.ELU, log_attention_weights=False):
+                 dropout=0.0, layer_type=LayerType.IMP3, activation=nn.ELU, log_attention_weights=False):
         super().__init__()
         self.num_of_layers = num_of_layers
         self.num_heads_per_layer = num_heads_per_layer
@@ -69,7 +69,7 @@ class ReadoutGAT(torch.nn.Module):
         understand implementation 2 first, check out the differences it has with imp1, and finally tackle imp #3.
     """
 
-    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, edge_index, add_skip_connection=True, bias=True,
+    def __init__(self, num_of_layers, num_heads_per_layer, num_features_per_layer, edge_index, activation=nn.ELU, add_skip_connection=True, bias=True,
                  dropout=0.6, layer_type=LayerType.IMP3, log_attention_weights=False, readout=None, readout_activation=None,
                  readout_sizes=[], readout_kwargs={}):
         super().__init__()
@@ -95,7 +95,7 @@ class ReadoutGAT(torch.nn.Module):
                 num_of_heads=num_heads_per_layer[i+1],
                 edge_index= edge_index,
                 concat=True if i < num_of_layers - 1 else False,  # last GAT layer does mean avg, the others do concat
-                activation=nn.ELU() if i < num_of_layers - 1 else None,  # last layer just outputs raw scores
+                activation=activation() if i < num_of_layers - 1 else None,  # last layer just outputs raw scores
                 dropout_prob=dropout,
                 add_skip_connection=add_skip_connection,
                 bias=bias,
