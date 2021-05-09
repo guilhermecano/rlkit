@@ -195,7 +195,7 @@ class TanhGATGaussianPolicy(GAT, TorchStochasticPolicy):
         log_prob = tanh_normal.log_prob(
             action,
         )
-        log_prob = log_prob.sum(dim=2, keepdim=True)
+        log_prob = log_prob.sum(dim=1, keepdim=True)
         return log_prob
 
 class GaussianPolicy(Mlp, TorchStochasticPolicy):
